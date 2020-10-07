@@ -1,0 +1,34 @@
+atari:
+  policy: 'CnnPolicy'
+  n_envs: 32
+  n_timesteps: !!float 5e6
+  lr_schedule: 'linear'
+  async_eigen_decomp: True
+
+CartPole-v1:
+  n_envs: 8
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  ent_coef: 0.0
+
+LunarLander-v2:
+  n_envs: 8
+  n_steps: 128
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  lr_schedule: 'constant'
+
+MountainCar-v0:
+  normalize: true
+  n_envs: 16
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  ent_coef: 0.0
+
+Acrobot-v1:
+  normalize: true
+  n_envs: 16
+  n_timesteps: !!float 5e5
+  policy: 'MlpPolicy'
+  ent_coef: 0.0

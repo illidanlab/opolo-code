@@ -1,0 +1,151 @@
+# Note: OpenAI uses 16 mpi workers for training on atari
+# in practice it is run with with 4 workers
+# customized
+# Note: OpenAI uses 16 mpi workers for training on atari
+# in practice it is run with with 4 workers
+atari:
+  n_timesteps: !!float 1e7
+  #n_envs: 4
+  policy: 'CnnPolicy'
+  timesteps_per_batch: 512
+  max_kl: 0.001
+  cg_iters: 10
+  cg_damping: !!float 1e-3
+  entcoeff: 0.01
+  gamma: 0.98
+  lam: 1
+  vf_iters: 3
+  vf_stepsize: !!float 1e-4
+
+Hopper-v2:
+  n_timesteps: !!float 1e7
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  policy: 'DualMlpPolicy'
+  timesteps_per_batch: 512
+  #timesteps_per_batch: 2048
+  #max_kl: 0.005
+  max_kl: 0.05
+  cg_iters: 10
+  cg_damping: !!float 1e-3
+  #entcoeff: 0.01
+  gamma: 0.99
+  lam: 1
+  vf_iters: 3
+  #vf_stepsize: !!float 1e-3
+  vf_stepsize: !!float 1e-4
+  buffer_size: !!float 1e6
+  #d_gradient_steps: 16
+
+Walker2d-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e7
+  policy: 'MlpPolicy'
+  timesteps_per_batch: 2048
+  max_kl: 0.01
+  cg_iters: 20
+  cg_damping: 0.1
+  entcoeff: 0.001
+  gamma: 0.99
+  lam: 0.95
+  vf_iters: 5
+  vf_stepsize: !!float 1e-3
+  buffer_size: !!float 1e6
+  #d_gradient_steps: 32
+
+HalfCheetah-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e7
+  policy: 'MlpPolicy'
+  timesteps_per_batch: 2048
+  max_kl: 0.01
+  entcoeff: 0.0
+  cg_iters: 15
+  cg_damping: 0.1
+  gamma: 0.99
+  lam: 0.95
+  vf_iters: 5
+  vf_stepsize: !!float 1e-3
+  buffer_size: !!float 1e6
+  #d_gradient_steps: 32
+
+Swimmer-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e7
+  policy: 'MlpPolicy'
+  timesteps_per_batch: 2048
+  max_kl: 0.01
+  cg_iters: 15
+  cg_damping: 0.1
+  entcoeff: 0.0
+  gamma: 0.99
+  lam: 0.95
+  vf_iters: 5
+  vf_stepsize: !!float 1e-3
+  buffer_size: !!float 1e5
+  #d_gradient_steps: 32
+
+
+InvertedPendulum-v2:
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  timesteps_per_batch: 2048
+  max_kl: 0.05
+  cg_iters: 15
+  cg_damping: 0.1
+  entcoeff: 0.0
+  gamma: 0.99
+  lam: 0.95
+  vf_iters: 5
+  vf_stepsize: !!float 3e-4
+  buffer_size: !!float 1e5
+  #d_gradient_steps: 32
+
+InvertedDoublePendulum-v2:
+  #env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  timesteps_per_batch: 2048
+  #max_kl: 0.01
+  max_kl: 0.05
+  cg_iters: 15
+  cg_damping: 0.1
+  entcoeff: 0.0
+  gamma: 0.99
+  lam: 0.95
+  vf_iters: 5
+  vf_stepsize: !!float 3e-4
+  buffer_size: !!float 1e5
+  #d_gradient_steps: 32
+
+Ant-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e7
+  policy: 'MlpPolicy'
+  timesteps_per_batch: 2048
+  max_kl: 0.01
+  cg_iters: 15
+  cg_damping: 0.1
+  entcoeff: 0.01
+  gamma: 0.99
+  lam: 0.95
+  vf_iters: 5
+  vf_stepsize: !!float 1e-3
+  buffer_size: !!float 1e6
+  #d_gradient_steps: 32
+
+# custom
+Humanoid-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e7
+  policy: 'MlpPolicy'
+  timesteps_per_batch: 2048
+  max_kl: 0.01
+  cg_iters: 20
+  cg_damping: 0.1
+  entcoeff: 0.01
+  gamma: 0.99
+  lam: 0.95
+  vf_iters: 5
+  vf_stepsize: !!float 1e-3
+  buffer_size: !!float 1e6
+

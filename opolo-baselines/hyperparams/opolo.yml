@@ -1,0 +1,161 @@
+HalfCheetah-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 3e-4
+  train_freq: 1000
+  gradient_steps: 1000
+  policy_kwargs: "dict(layers=[400, 300])"
+
+Ant-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 2e6
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 3e-4
+  train_freq: 1000
+  gradient_steps: 1000
+  policy_kwargs: "dict(layers=[400, 300])"
+
+
+Hopper-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  alpha: 0.01
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 1e-4
+  train_freq: 1000
+  gradient_steps: 1000
+  pi_reg_coeff: 0.01
+  policy_kwargs: "dict(layers=[400, 300])"
+
+
+Walker2d-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  noise_std_final: 0.05
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 3e-4
+  train_freq: 1000
+  gradient_steps: 1000
+  policy_kwargs: "dict(layers=[400, 300])"
+
+
+Swimmer-v2:
+   env_wrapper: utils.wrappers.TimeFeatureWrapper
+   n_timesteps: !!float 2e6
+   policy: 'MlpPolicy'
+   gamma: 0.99
+   buffer_size: 100000
+   noise_type: 'normal'
+   noise_std: 0.1
+   learning_starts: 10000
+   batch_size: 100
+   learning_rate: !!float 1e-3
+   train_freq: 1000
+   gradient_steps: 1000
+   policy_kwargs: "dict(layers=[400, 300])"
+
+InvertedDoublePendulum-v2:
+  n_timesteps: !!float 5e5
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 3e-4
+  train_freq: 1000
+  alpha: 0.01
+  gradient_steps: 1000
+  policy_kwargs: "dict(layers=[400, 300])"
+
+InvertedPendulum-v2:
+  n_timesteps: !!float 5e5
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 3e-4
+  #alpha: 0.1
+  #pi_reg_coeff: 0.01
+  train_freq: 1000
+  gradient_steps: 1000
+  policy_kwargs: "dict(layers=[400, 300])"
+
+
+#Humanoid-v2:
+#  env_wrapper: utils.wrappers.TimeFeatureWrapper
+#  n_timesteps: !!float 2e6
+#  policy: 'MlpPolicy'
+#  gamma: 0.99
+#  buffer_size: 1000000
+#  noise_type: 'normal'
+#  noise_std: 0.1
+#  learning_starts: 10000
+#  batch_size: 100
+#  learning_rate: !!float 3e-4
+#  train_freq: 1000
+#  gradient_steps: 1000
+#  policy_kwargs: "dict(layers=[400, 300])"
+
+Humanoid-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 2e6
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 3e-4
+  #learning_rate: !!float 1e-4
+  train_freq: 1000
+  alpha: 1
+  gradient_steps: 1000
+  policy_kwargs: "dict(layers=[400, 300])"
+
+
+Reacher-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 1e6
+  policy: 'MlpPolicy'
+  gamma: 0.99
+  buffer_size: 1000000
+  noise_type: 'normal'
+  noise_std: 0.1
+  learning_starts: 10000
+  batch_size: 100
+  learning_rate: !!float 1e-3
+  train_freq: 1000
+  gradient_steps: 1000
+  policy_kwargs: "dict(layers=[400, 300])"
+

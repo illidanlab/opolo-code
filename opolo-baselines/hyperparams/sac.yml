@@ -1,0 +1,85 @@
+# Tuned
+HalfCheetah-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 3e6
+  policy: 'CustomSACPolicy'
+  learning_rate: !!float 3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 'auto'
+  #ent_coef: 0.01
+  gamma: 0.98
+  train_freq: 1
+  tau: 0.01
+  gradient_steps: 1
+  learning_starts: 10000
+
+
+Swimmer-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 3e6
+  policy: 'CustomSACPolicy'
+  learning_rate: !!float 3e-4
+  buffer_size: 100000
+  batch_size: 256
+  ent_coef: 0.01
+  #ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10000
+
+
+Walker2d-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 3e6
+  policy: 'CustomSACPolicy'
+  learning_rate: !!float 3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  #ent_coef: 0.01
+  ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10000
+
+Ant-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 3e6
+  policy: 'CustomSACPolicy'
+  learning_rate: !!float 3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  #ent_coef: 'auto'
+  ent_coef: 0.01
+  gamma: 0.98
+  train_freq: 1
+  tau: 0.01
+  gradient_steps: 1
+  learning_starts: 10000
+
+
+Hopper-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  n_timesteps: !!float 3e6
+  policy: 'CustomSACPolicy'
+  learning_rate: !!float 3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  #ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10000
+
+Humanoid-v2:
+  env_wrapper: utils.wrappers.TimeFeatureWrapper
+  normalize: "{'norm_obs': True, 'norm_reward': False}"
+  n_timesteps: !!float 2e7
+  policy: 'CustomSACPolicy'
+  learning_rate: !!float 3e-4
+  buffer_size: 1000000
+  batch_size: 64
+  ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
