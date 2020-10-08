@@ -16,7 +16,6 @@ from stable_baselines.common.cg import conjugate_gradient
 from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.trpo_mpi.utils import SegmentGenerator, traj_segment_generator, add_vtarg_and_adv, flatten_lists
-#from stable_baselines.gail.adversary import DiscriminatorCalssifier
 
 from stable_baselines.gail.gaifo import GAIfODiscriminator
 from stable_baselines.gail.dataset.dataset import ExpertDataset
@@ -26,7 +25,7 @@ from stable_baselines.deepq.replay_buffer import ReplayBuffer
 
 class TRPOGAIFO(ActorCriticRLModel):
     """
-    Trust Region Policy Optimization (https://arxiv.org/abs/1502.05477)
+    GAIfO implementation based on the Trust Region Policy Optimization (https://arxiv.org/abs/1502.05477)
 
     :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
@@ -144,9 +143,6 @@ class TRPOGAIFO(ActorCriticRLModel):
                 self.sess = tf_util.make_session(num_cpu=self.n_cpu_tf_sess, graph=self.graph)
 
                 if self.using_gail:
-                    #self.reward_giver = TransitionClassifier(self.observation_space, self.action_space,
-                    #                                         self.hidden_size_adversary,
-                    #                                         entcoeff=self.adversary_entcoeff)
                     self.discriminator = GAIfODiscriminator(
                         self.observation_space,
                         hidden_size=256,
@@ -283,7 +279,6 @@ class TRPOGAIFO(ActorCriticRLModel):
 
                 self.params = tf_util.get_trainable_vars("model") + tf_util.get_trainable_vars("oldpi")
                 if self.using_gail:
-                    #self.params.extend(self.reward_giver.get_trainable_variables())
                     self.params.extend(self.discriminator.get_trainable_variables())
 
                 self.summary = tf.summary.merge(policy_summary)
@@ -361,7 +356,6 @@ class TRPOGAIFO(ActorCriticRLModel):
                         with self.timed("sampling"):
                             seg = seg_gen.__next__()
                         add_vtarg_and_adv(seg, self.gamma, self.lam)
-                        # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
                         observation, action = seg["observations"], seg["actions"]
                         atarg, tdlamret = seg["adv"], seg["tdlamret"]
 

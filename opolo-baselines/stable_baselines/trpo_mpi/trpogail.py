@@ -17,8 +17,6 @@ from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.trpo_mpi.utils import SegmentGenerator, add_vtarg_and_adv, flatten_lists
 
-#from stable_baselines.gail.gaifo import GAIfODiscriminator
-from stable_baselines.gail.adversary import DiscriminatorCalssifier
 from stable_baselines.gail.triple import TripleDiscriminator
 from stable_baselines.gail.dataset.dataset import ExpertDataset
 from stable_baselines.deepq.replay_buffer import ReplayBuffer
@@ -27,7 +25,7 @@ from stable_baselines.deepq.replay_buffer import ReplayBuffer
 
 class TRPOGAIL(ActorCriticRLModel):
     """
-    Trust Region Policy Optimization (https://arxiv.org/abs/1502.05477)
+    GAIL based on an TRPO implementation (https://arxiv.org/abs/1502.05477)
 
     :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
@@ -109,15 +107,9 @@ class TRPOGAIL(ActorCriticRLModel):
         self.adversary_entcoeff = 1e-3
         self.adversary_gradcoeff = 10
         self.demo_buffer_size = demo_buffer_size
-        #self.d_batch_size = 128  
-        self.d_batch_size = 256  
+        self.d_batch_size = 256
         self.d_gradient_steps= timesteps_per_batch // self.d_batch_size
-        #if d_gradient_steps is None:
-        #    self.d_gradient_steps= int(timesteps_per_batch // self.d_batch_size)  
-        #else:
-        #    self.d_gradient_steps = d_gradient_steps 
         self.d_learning_rate = 3e-4
-
 
         if _init_setup_model:
             self.setup_model(config)
@@ -136,14 +128,9 @@ class TRPOGAIL(ActorCriticRLModel):
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the TRPO model must be " \
                                                                "an instance of common.policies.ActorCriticPolicy."
             self.config = config
-            self.using_gail = 'gail' in config['shaping_mode'] 
-            self.offpolicy = 'offpolicy' in config['shaping_mode']
-            self.adaptive = 'adaptive' in config['shaping_mode']
-            self.explore = 'explore' in config['shaping_mode']
             self.expert_data_path = config.get('expert_data_path', None)
-            if self.using_gail:
-                self.expert_dataset = ExpertDataset(expert_path=self.expert_data_path, ob_flatten=False) 
-                print('-'*20 + "expert_data_path: {}".format(self.expert_data_path))
+            self.expert_dataset = ExpertDataset(expert_path=self.expert_data_path, ob_flatten=False)
+            print('-'*20 + "expert_data_path: {}".format(self.expert_data_path))
 
             self.nworkers = MPI.COMM_WORLD.Get_size()
             self.rank = MPI.COMM_WORLD.Get_rank()
@@ -156,37 +143,16 @@ class TRPOGAIL(ActorCriticRLModel):
 
                 self.discriminator = None
                 self.explore_discriminator = None
-                if self.using_gail:
-                    self.discriminator = TripleDiscriminator(
-                        self.env,
-                        self.observation_space,
-                        self.action_space,
-                        hidden_size=self.hidden_size_adversary,
-                        entcoeff=self.adversary_entcoeff,
-                        gradcoeff=self.adversary_gradcoeff,
-                        normalize=True
-                    )
-                    #self.discriminator = DiscriminatorCalssifier(
-                    #    self.env,
-                    #    self.observation_space,
-                    #    self.action_space,
-                    #    hidden_size=self.hidden_size_adversary,
-                    #    entcoeff=self.adversary_entcoeff,
-                    #    gradcoeff=self.adversary_gradcoeff,
-                    #    normalize=True
-                    #)
-                    if self.explore:
-                        self.explore_discriminator = DiscriminatorCalssifier(
-                            self.env,
-                            self.observation_space,
-                            self.action_space,
-                            hidden_size=self.hidden_size_adversary,
-                            entcoeff=self.adversary_entcoeff,
-                            gradcoeff=self.adversary_gradcoeff,
-                            scope='explore_adversary',
-                            normalize=True 
-                        )
-
+                # we find that training discriminator using (s,a,s') obtains better performance than using (s,a).
+                self.discriminator = TripleDiscriminator(
+                    self.env,
+                    self.observation_space,
+                    self.action_space,
+                    hidden_size=self.hidden_size_adversary,
+                    entcoeff=self.adversary_entcoeff,
+                    gradcoeff=self.adversary_gradcoeff,
+                    normalize=True
+                )
 
                 # Construct network for new policy
                 self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
@@ -287,12 +253,8 @@ class TRPOGAIL(ActorCriticRLModel):
                 with tf.variable_scope("Adam_mpi", reuse=False):
                     self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
                     self.vfadam.sync()
-                    if self.using_gail:
-                        self.d_adam = MpiAdam(self.discriminator.get_trainable_variables(), sess=self.sess)
-                        self.d_adam.sync()
-                    if self.explore:
-                        self.d_explore_adam = MpiAdam(self.explore_discriminator.get_trainable_variables(), sess=self.sess)
-                        self.d_explore_adam.sync()
+                    self.d_adam = MpiAdam(self.discriminator.get_trainable_variables(), sess=self.sess)
+                    self.d_adam.sync()
 
                 with tf.variable_scope("input_info", reuse=False):
                     policy_summary.append(tf.summary.scalar('discounted_rewards', tf.reduce_mean(ret)))
@@ -318,11 +280,7 @@ class TRPOGAIL(ActorCriticRLModel):
                 self.initial_state = self.policy_pi.initial_state
 
                 self.params = tf_util.get_trainable_vars("model") + tf_util.get_trainable_vars("oldpi")
-                if self.using_gail:
-                    self.params.extend(self.discriminator.get_trainable_variables())
-                if self.explore:
-                    self.params.extend(self.explore_discriminator.get_trainable_variables())
-
+                self.params.extend(self.discriminator.get_trainable_variables())
                 self.summary = tf.summary.merge(policy_summary)
 
                 self.compute_lossandgrad = \
@@ -339,15 +297,9 @@ class TRPOGAIL(ActorCriticRLModel):
             self._setup_learn()
             
             true_reward_buffer = deque(maxlen=40)
-            if self.using_gail:
-                # Initialize demonstration buffer 
-                self.teacher_buffer = ReplayBuffer(self.demo_buffer_size)
-                self.teacher_buffer.initialize_teacher_buffer(self.expert_dataset)
-                # Initialize off-policy buffer for exploration 
-                *_values, demo_episode_scores = self.expert_dataset.get_transitions()
-                self.expert_scores = [s for s in demo_episode_scores]
-                self.expert_scores.sort()
-            self.replay_buffer = ReplayBuffer(self.buffer_size) if self.offpolicy else None
+            # Initialize demonstration buffer
+            self.teacher_buffer = ReplayBuffer(self.demo_buffer_size)
+            self.teacher_buffer.initialize_teacher_buffer(self.expert_dataset)
 
             with self.sess.as_default():
                 seg_generator = SegmentGenerator(
@@ -356,11 +308,11 @@ class TRPOGAIL(ActorCriticRLModel):
                     self.timesteps_per_batch,
                     self.discriminator,
                     explore_discriminator=self.explore_discriminator,
-                    replay_buffer=self.replay_buffer,
+                    replay_buffer=None,
                     sess=self.sess,
                     config=self.config
                 )
-                seg_gen = seg_generator.traj_segment_generator(gail=self.using_gail)
+                seg_gen = seg_generator.traj_segment_generator(gail=True)
 
                 episodes_so_far = 0
                 timesteps_so_far = 0
@@ -503,41 +455,25 @@ class TRPOGAIL(ActorCriticRLModel):
                                           explained_variance(vpredbefore, tdlamret))
                                           
 
-                    if self.using_gail:
-                        ## # ------------------ Update D ------------------
-                        # onpolicy discriminator 
-                        self.discriminator.train_onpolicy_discriminator(
-                            writer, logger, self.d_gradient_steps, self.d_learning_rate,
-                            self.d_batch_size, self.teacher_buffer, seg,
-                            #self.d_batch_size, self.teacher_buffer, self.replay_buffer if (self.offpolicy and not self.explore) else None, seg,
-                            self.num_timesteps, self.sess, self.d_adam, self.nworkers)
+                    ## # ------------------ Update D ------------------
+                    # onpolicy discriminator
+                    self.discriminator.train_onpolicy_discriminator(
+                        writer, logger, self.d_gradient_steps, self.d_learning_rate,
+                        self.d_batch_size, self.teacher_buffer, seg,
+                        self.num_timesteps, self.sess, self.d_adam, self.nworkers)
 
-                        # offpolicy discriminator
-                        if self.explore:
-                            self.explore_discriminator.train_onpolicy_discriminator(
-                                writer, logger, self.d_gradient_steps, self.d_learning_rate,
-                                self.d_batch_size, self.teacher_buffer, self.replay_buffer, seg,
-                                self.num_timesteps, self.sess, self.d_adam, self.nworkers)
-                             
-
-                        # lr: lengths and rewards
-                        lr_local = (seg["ep_lens"], seg["ep_rets"], seg["ep_true_rets"])  # local values
-                        list_lr_pairs = MPI.COMM_WORLD.allgather(lr_local)  # list of tuples
-                        lens, rews, true_rets = map(flatten_lists, zip(*list_lr_pairs))
-                        true_reward_buffer.extend(true_rets)
-                    else:
-                        # lr: lengths and rewards
-                        lr_local = (seg["ep_lens"], seg["ep_rets"])  # local values
-                        list_lr_pairs = MPI.COMM_WORLD.allgather(lr_local)  # list of tuples
-                        lens, rews = map(flatten_lists, zip(*list_lr_pairs))
+                    # lr: lengths and rewards
+                    lr_local = (seg["ep_lens"], seg["ep_rets"], seg["ep_true_rets"])  # local values
+                    list_lr_pairs = MPI.COMM_WORLD.allgather(lr_local)  # list of tuples
+                    lens, rews, true_rets = map(flatten_lists, zip(*list_lr_pairs))
+                    true_reward_buffer.extend(true_rets)
                     len_buffer.extend(lens)
                     reward_buffer.extend(rews)
 
                     if len(len_buffer) > 0:
                         logger.record_tabular("EpLenMean", np.mean(len_buffer))
                         logger.record_tabular("EpRewMean", np.mean(reward_buffer))
-                    if self.using_gail:
-                        logger.record_tabular("EpTrueRewMean", np.mean(true_reward_buffer))
+                    logger.record_tabular("EpTrueRewMean", np.mean(true_reward_buffer))
                     logger.record_tabular("EpThisIter", len(lens))
                     episodes_so_far += len(lens)
                     current_it_timesteps = MPI.COMM_WORLD.allreduce(seg["total_timestep"])
@@ -555,7 +491,7 @@ class TRPOGAIL(ActorCriticRLModel):
         return self
 
     def save(self, save_path, cloudpickle=False):
-        if self.using_gail and self.expert_dataset is not None:
+        if self.expert_dataset is not None:
             # Exit processes to pickle the dataset
             self.expert_dataset.prepare_pickling()
         data = {
@@ -574,7 +510,6 @@ class TRPOGAIL(ActorCriticRLModel):
             "g_step": self.g_step,
             "d_step": self.d_step,
             "d_stepsize": self.d_stepsize,
-            "using_gail": self.using_gail,
             "verbose": self.verbose,
             "policy": self.policy,
             "observation_space": self.observation_space,

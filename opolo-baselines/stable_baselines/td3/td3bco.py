@@ -14,7 +14,6 @@ from stable_baselines.ppo2.ppo2 import safe_mean, get_schedule_fn
 from stable_baselines.sac.sac import get_vars
 from stable_baselines.td3.policies import TD3Policy
 from stable_baselines import logger
-from stable_baselines.gail.gaifo import GAIfODiscriminator
 from stable_baselines.gail.idm import InverseModel
 
 from stable_baselines.gail.dataset.dataset import ExpertDataset
@@ -23,8 +22,8 @@ from stable_baselines.gail.dataset.dataset import ExpertDataset
 class TD3BCO(OffPolicyRLModel):
     """
     Behavior Cloning from Observation, based on Twin Delayed DDPG (TD3)  -- Judy
-    I borrow TD3 framework for simplicity. 
-    Difference from TD3: no critic, only a policy network
+    I borrowed the TD3 framework for simplicity.
+    Difference from TD3: no critic, only a policy network (for behavior cloning)
     Adds on TD3: inverse dynamic model
 
     Original paper: https://arxiv.org/pdf/1805.01954.pdf 
@@ -122,7 +121,6 @@ class TD3BCO(OffPolicyRLModel):
         ###############################
         self.idm_learning_rate = 3e-4
         self.config = config  
-        #self.train_freq_alpha = 0.01
         self.train_freq_alpha = 0.1
         self.idm_gradient_steps = 100 
         self.learning_starts = int(self.train_freq / self.train_freq_alpha)
@@ -184,19 +182,11 @@ class TD3BCO(OffPolicyRLModel):
                     # Create policy and target TF objects
                     self.policy_tf = self.policy(self.sess, self.observation_space, self.action_space,
                                                  **self.policy_kwargs)
-                    # self.target_policy_tf = self.policy(self.sess, self.observation_space, self.action_space,
-                    #                                     **self.policy_kwargs)
 
                     # Initialize Placeholders
                     self.observations_ph = self.policy_tf.obs_ph
                     # Normalized observation for pixels
                     self.processed_obs_ph = self.policy_tf.processed_obs
-                    # self.next_observations_ph = self.target_policy_tf.obs_ph
-                    # self.processed_next_obs_ph = self.target_policy_tf.processed_obs
-                    # self.action_target = self.target_policy_tf.action_ph
-                    # self.terminals_ph = tf.placeholder(tf.float32, shape=(None, 1), name='terminals')
-                    # self.rewards_ph = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
-                    # self.raw_rewards_ph = tf.placeholder(tf.float32, shape=(None, 1), name='raw_rewards')
                     self.actions_ph = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape,
                                                      name='actions')
                     self.learning_rate_ph = tf.placeholder(tf.float32, [], name="learning_rate_ph")
@@ -210,41 +200,9 @@ class TD3BCO(OffPolicyRLModel):
                 with tf.variable_scope("model", reuse=False):
                     # Create the policy
                     self.policy_out = policy_out = self.policy_tf.make_actor(self.processed_obs_ph)
-                    # Use two Q-functions to improve performance by reducing overestimation bias
-                    #qf1, qf2 = self.policy_tf.make_critics(self.processed_obs_ph, self.actions_ph)
-                    # Q value when following the current policy
-                    #qf1_pi, _ = self.policy_tf.make_critics(self.processed_obs_ph, policy_out, reuse=True)
-                    self.idm_policy_predict = self.policy_tf.make_actor(self.idm_obs_ph, reuse=True) 
-
-
-                # with tf.variable_scope("target", reuse=False):
-                #     # Create target networks
-                #     target_policy_out = self.target_policy_tf.make_actor(self.processed_next_obs_ph)
-                #     # Target policy smoothing, by adding clipped noise to target actions
-                #     target_noise = tf.random_normal(tf.shape(target_policy_out), stddev=self.target_policy_noise)
-                #     target_noise = tf.clip_by_value(target_noise, -self.target_noise_clip, self.target_noise_clip)
-                #     # Clip the noisy action to remain in the bounds [-1, 1] (output of a tanh)
-                #     noisy_target_action = tf.clip_by_value(target_policy_out + target_noise, -1, 1)
-                #     # Q values when following the target policy
-                #     qf1_target, qf2_target = self.target_policy_tf.make_critics(self.processed_next_obs_ph,
-                #                                                                 noisy_target_action)
+                    self.idm_policy_predict = self.policy_tf.make_actor(self.idm_obs_ph, reuse=True)
 
                 with tf.variable_scope("loss", reuse=False):
-                    # # Take the min of the two target Q-Values (clipped Double-Q Learning)
-                    # min_qf_target = tf.minimum(qf1_target, qf2_target)
-
-                    # # Targets for Q value regression
-                    # q_backup = tf.stop_gradient(
-                    #     self.rewards_ph +
-                    #     (1 - self.terminals_ph) * self.gamma * min_qf_target
-                    # )
-
-                    # # Compute Q-Function loss
-                    # qf1_loss = tf.reduce_mean((q_backup - qf1) ** 2)
-                    # qf2_loss = tf.reduce_mean((q_backup - qf2) ** 2)
-
-                    # qvalues_losses = qf1_loss + qf2_loss
-
                     # Policy loss: minimize difference between teacher-inverse-action and predicted-inveres-action
                     self.policy_loss = policy_loss = tf.reduce_mean((self.idm_inverse_acs_ph - self.idm_policy_predict) ** 2)
                    
@@ -256,62 +214,20 @@ class TD3BCO(OffPolicyRLModel):
                     policy_train_op = policy_optimizer.minimize(policy_loss, var_list=get_vars('model/pi'))
                     self.policy_train_op = policy_train_op
 
-                    # # Q Values optimizer
-                    # qvalues_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph)
-                    # qvalues_params = get_vars('model/values_fn/')
-
-                    # Q Values and policy target params
-                    #source_params = get_vars("model/")
-                    #target_params = get_vars("target/")
-
-                    # Polyak averaging for target variables
-                    # self.target_ops = [
-                    #     tf.assign(target, (1 - self.tau) * target + self.tau * source)
-                    #     for target, source in zip(target_params, source_params)
-                    # ]
-
-                    # Initializing target to match source variables
-                    # target_init_op = [
-                    #     tf.assign(target, source)
-                    #     for target, source in zip(target_params, source_params)
-                    # ]
-
-                    #train_values_op = qvalues_optimizer.minimize(qvalues_losses, var_list=qvalues_params)
-
-                    #self.infos_names = ['qf1_loss', 'qf2_loss']
-                    # All ops to call during one training step
                     self.step_ops = [self.policy_train_op, self.policy_loss]
 
                     # Monitor losses and entropy in tensorboard
                     summary_list = []
                     summary_list.append(tf.summary.scalar('policy_loss', self.policy_loss))
                     summary_list.append(tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph)))
-                    #summary_list.append(tf.summary.scalar('qf1_loss', qf1_loss))
-                    #summary_list.append(tf.summary.scalar('qf2_loss', qf2_loss))
-                    #summary_list.append(tf.summary.scalar('shaped_rewards', tf.reduce_mean(self.rewards_ph)))
-                    #summary_list.append(tf.summary.scalar('raw_rewards', tf.reduce_mean(self.raw_rewards_ph)))
-
-                    
-                    
 
                 # Retrieve parameters that must be saved
                 self.params = get_vars("model")
-                #self.target_params = get_vars("target/")
-
                 # Initialize Variables and target network
                 with self.sess.as_default():
                     self.sess.run(tf.global_variables_initializer())
-                    #self.sess.run(target_init_op)
 
                 self.summary = tf.summary.merge(summary_list)
-
-
-    def get_imitate_reward(self, batch_obs, batch_actions, batch_next_obs, batch_rewards, batch_dones):
-        mode = self.config['shaping_mode']
-        if mode == 'train':
-            return batch_rewards
-        rewards = self.discriminator.get_reward(batch_obs, batch_next_obs, sess=self.sess)
-        return rewards
 
     def _train_policy(self, step, writer, learning_rate):
         # Sample a batch from the teacher buffer
@@ -330,17 +246,13 @@ class TD3BCO(OffPolicyRLModel):
             summary = out.pop(0)
             writer.add_summary(summary, step)
         else:
-            out = self.sess.run(step_ops, feed_dict)
+            self.sess.run(step_ops, feed_dict)
         del teacher_batch_obs, teacher_batch_next_obs
 
     def should_train(self, step):
         # at first, we only pre-train IDM models
         can_sample = self.teacher_buffer.can_sample(self.batch_size) and self.replay_buffer.can_sample(self.batch_size)
         return can_sample and step > self.learning_starts and step % self.train_freq == 0
-
-    #def should_train(self, step ):
-    #    can_sample = self.teacher_buffer.can_sample(self.batch_size) and self.replay_buffer.can_sample(self.batch_size)
-    #    return can_sample and step % self.train_freq == 0
 
     def learn(self, total_timesteps, callback=None,
               log_interval=4, tb_log_name="BCO", reset_num_timesteps=True, replay_wrapper=None):
@@ -371,30 +283,6 @@ class TD3BCO(OffPolicyRLModel):
                 self.action_noise.reset()
             obs = self.env.reset()
             n_updates = 0
-            #infos_values = []
-
-            ####### Pre-demonstration phase #########
-            #for step in range(self.learning_starts): 
-            #    unscaled_action = self.env.action_space.sample()
-            #    action = scale_action(self.action_space, unscaled_action)
-            #    new_obs, reward, done, info = self.env.step(unscaled_action)
-            #    self.replay_buffer.add(obs, action, reward, new_obs, float(done))
-            #    obs = new_obs
-            #obs = self.env.reset()
-            # Pre-train Inverse Dynamic Model 
-            #self.inverse_model.train_idm(
-            #    writer,
-            #    #None,
-            #    logger,
-            #    step,
-            #    self.learning_starts * 10,
-            #    self.100,
-            #    self.replay_buffer,
-            #    self.batch_size,
-            #    self.sess
-            #)
-            print("Pretrainning complete.")
-            ####### Post-demonstration phase #########
             for step in range(total_timesteps):
                 if callback is not None:
                     # Only stop training if return value is False, not when it is None. This is for backwards
@@ -441,7 +329,7 @@ class TD3BCO(OffPolicyRLModel):
                                                 ep_done, writer, self.num_timesteps)
 
                 if step == self.learning_starts:
-                    # pre-train
+                    ####### Pre-demonstration phase #########
                     print('Pre-training IDM model')
                     self.inverse_model.train_idm(
                         writer,
@@ -453,6 +341,7 @@ class TD3BCO(OffPolicyRLModel):
                         self.sess
                     )
                     print('IDM pre-training complete.')
+                ####### Post-demonstration phase #########
                 if self.should_train(step):
                     ## Train Inverse Dynamic Model
                     self.inverse_model.train_idm(
@@ -473,16 +362,7 @@ class TD3BCO(OffPolicyRLModel):
                         # Compute current learning_rate
                         frac = 1.0 - step / total_timesteps
                         current_lr = self.learning_rate(frac)
-                        # Update policy and critics (q functions)
-                        # Note: the policy is updated less frequently than the Q functions
-                        # this is controlled by the `policy_delay` parameter
-                        #mb_infos_vals.append()
                         self._train_policy(step, writer, current_lr)
-                       
-
-                    # Log losses and entropy, useful for monitor training
-                    #if len(mb_infos_vals) > 0:
-                        #infos_values = np.mean(mb_infos_vals, axis=0)
 
                 episode_rewards[-1] += reward
                 if done:
@@ -517,18 +397,12 @@ class TD3BCO(OffPolicyRLModel):
                     logger.logkv('time_elapsed', int(time.time() - start_time))
                     if len(episode_successes) > 0:
                         logger.logkv("success rate", np.mean(episode_successes[-100:]))
-                    # if len(infos_values) > 0:
-                    #     for (name, val) in zip(self.infos_names, infos_values):
-                    #         logger.logkv(name, val)
                     logger.logkv("total timesteps", self.num_timesteps)
                     logger.dumpkvs()
-                    # Reset infos:
-                    #infos_values = []
             return self
 
     def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
         _ = np.array(observation)
-
         if actions is not None:
             raise ValueError("Error: TD3 does not have action probabilities.")
 
