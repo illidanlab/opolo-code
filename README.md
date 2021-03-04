@@ -1,6 +1,6 @@
 # *OPOLO*: *O*ff-*Po*licy *L*earning from *O*bservations
 
-Research code to accompany the paper: *Off-Policy Imitation Learning from Observations*.
+Research code to accompany the paper: [*Off-Policy Imitation Learning from Observations*](https://proceedings.neurips.cc//paper/2020/file/92977ae4d2ba21425a59afb269c2a14e-Paper.pdf).
 
 #### Supported Algorithms: ####
 - OPOLO (the proposed algorithm in the paper).
